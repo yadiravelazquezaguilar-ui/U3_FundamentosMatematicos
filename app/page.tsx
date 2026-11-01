@@ -29,9 +29,13 @@ function MathText({text}:{text:string}){
  const result:React.ReactNode[]=[];const matrixPattern=/\[\[[^\[\]]*(?:\]\s*,\s*\[[^\[\]]*)*\]\]/g;let from=0;let match:RegExpExecArray|null;
  while((match=matrixPattern.exec(text))!==null){
   if(match.index>from)result.push(...renderText(text.slice(from,match.index),"t"+from));
-  const raw=match[0];const rows=raw.slice(2,-2).split(/\]\s*,\s*\[/).map(row=>row.split(",").map(cell=>cell.trim()));
-  if(rows.length&&rows[0].length&&rows.every(row=>row.length===rows[0].length&&row.every(cell=>/^[+\-−]?(?:\d+(?:\.\d+)?|[a-zA-Z])$/.test(cell)))){
-   result.push(<span className="matrix-display" key={"m"+match.index} aria-label={"Matriz: "+rows.map(row=>row.join(", ")).join("; ")}><span className="matrix-cells" style={{gridTemplateColumns:`repeat(${rows[0].length}, minmax(1.3em, auto))`}}>{rows.flatMap((row,i)=>row.map((cell,j)=><span className="matrix-cell" key={i+"-"+j}>{cell}</span>))}</span></span>);
+  const raw=match[0];const sourceRows=raw.slice(2,-2).split(/\]\s*,\s*\[/).map(row=>row.split(",").map(cell=>cell.trim()));
+  const dividers=sourceRows.map(row=>row.findIndex(cell=>cell.includes("|")));
+  const augmented=dividers.length>0&&dividers[0]>=0&&dividers.every((divider,i)=>divider===dividers[0]&&sourceRows[i][divider].split("|").length===2);
+  const rows=sourceRows.map(row=>row.flatMap(cell=>cell.includes("|")?cell.split("|").map(value=>value.trim()):[cell]));
+  const dividerColumn=augmented?dividers[0]+1:-1;
+  if(rows.length&&rows[0].length&&rows.every(row=>row.length===rows[0].length&&row.every(cell=>/^[+\-−]?(?:\d+(?:\.\d+)?|[a-zA-Z])$/.test(cell)))&&(!sourceRows.some(row=>row.some(cell=>cell.includes("|")))||augmented)){
+   result.push(<span className="matrix-display" key={"m"+match.index} aria-label={(augmented?"Matriz aumentada: ":"Matriz: ")+rows.map(row=>row.join(", ")).join("; ")}><span className="matrix-cells" style={{gridTemplateColumns:`repeat(${rows[0].length}, minmax(1.3em, auto))`}}>{rows.flatMap((row,i)=>row.map((cell,j)=><span className={j===dividerColumn?"matrix-cell matrix-augmented-divider":"matrix-cell"} key={i+"-"+j}>{cell}</span>))}</span></span>);
   }else result.push(...renderText(raw,"raw"+match.index));
   from=matrixPattern.lastIndex;
  }
