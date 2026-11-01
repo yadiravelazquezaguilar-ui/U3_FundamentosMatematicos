@@ -149,3 +149,6 @@ body{font-size:17px;line-height:1.65}.section{max-width:1380px;padding:110px 42p
 .matrix-display::after{border-right:2px solid currentColor;margin-left:.17em}
 .matrix-cells{display:grid;align-items:center;justify-items:center;gap:.17em .55em;padding:.18em .14em}
 .matrix-cell{text-align:center;min-width:1.2em}
+
+/* Separa coeficientes y términos independientes en la matriz aumentada */
+.matrix-augmented-divider{border-left:2px solid currentColor;padding-left:.55em;margin-left:.1em}
