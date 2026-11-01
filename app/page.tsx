@@ -16,12 +16,12 @@ type ModuleKey=keyof typeof modules;
 const clean=(v:string)=>v.toLowerCase().replace(/\s+/g,"").replaceAll("−","-").replaceAll("≤","<=").replaceAll("≥",">=").replaceAll("∞","infinito").replace(/[{}]/g,"");
 function shuffle<T>(items:T[],seed:number){const a=[...items];let s=seed+1;for(let i=a.length-1;i>0;i--){s=(s*9301+49297)%233280;const j=Math.floor(s/233280*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 function MathText({text}:{text:string}){
- const renderText=(value:string,key:string)=>{const pieces=value.split(/(-?\\d+)\\/(-?\\d+)/g);return pieces.map((part,i)=>i%3===1?<span className="frac" key={key+"-"+i}><span>{part}</span><span>{pieces[i+1]}</span></span>:i%3===2?null:<span key={key+"-"+i}>{part}</span>)};
- const result:React.ReactNode[]=[];const matrixPattern=/\\[\\[[^\\[\\]]*(?:\\]\\s*,\\s*\\[[^\\[\\]]*)*\\]\\]/g;let from=0;let match:RegExpExecArray|null;
+ const renderText=(value:string,key:string)=>{const pieces=value.split(/(-?\d+)\/(-?\d+)/g);return pieces.map((part,i)=>i%3===1?<span className="frac" key={key+"-"+i}><span>{part}</span><span>{pieces[i+1]}</span></span>:i%3===2?null:<span key={key+"-"+i}>{part}</span>)};
+ const result:React.ReactNode[]=[];const matrixPattern=/\[\[[^\[\]]*(?:\]\s*,\s*\[[^\[\]]*)*\]\]/g;let from=0;let match:RegExpExecArray|null;
  while((match=matrixPattern.exec(text))!==null){
   if(match.index>from)result.push(...renderText(text.slice(from,match.index),"t"+from));
-  const raw=match[0];const rows=raw.slice(2,-2).split(/\\]\\s*,\\s*\\[/).map(row=>row.split(",").map(cell=>cell.trim()));
-  if(rows.length&&rows[0].length&&rows.every(row=>row.length===rows[0].length&&row.every(cell=>/^[+\\-−]?(?:\\d+(?:\\.\\d+)?|[a-zA-Z])$/.test(cell)))){
+  const raw=match[0];const rows=raw.slice(2,-2).split(/\]\s*,\s*\[/).map(row=>row.split(",").map(cell=>cell.trim()));
+  if(rows.length&&rows[0].length&&rows.every(row=>row.length===rows[0].length&&row.every(cell=>/^[+\-−]?(?:\d+(?:\.\d+)?|[a-zA-Z])$/.test(cell)))){
    result.push(<span className="matrix-display" key={"m"+match.index} aria-label={"Matriz: "+rows.map(row=>row.join(", ")).join("; ")}><span className="matrix-cells" style={{gridTemplateColumns:`repeat(${rows[0].length}, minmax(1.3em, auto))`}}>{rows.flatMap((row,i)=>row.map((cell,j)=><span className="matrix-cell" key={i+"-"+j}>{cell}</span>))}</span></span>);
   }else result.push(...renderText(raw,"raw"+match.index));
   from=matrixPattern.lastIndex;
