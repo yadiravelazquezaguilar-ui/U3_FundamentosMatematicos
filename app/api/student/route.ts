@@ -31,7 +31,7 @@ async function session(request:Request){
 export async function GET(request:Request){
  const current=await session(request);if(!current)return Response.json({user:null},{status:401,headers:sessionHeaders(undefined,true)});
  const r=await authRequest(`/rest/v1/estado_alumno?alumno_id=eq.${current.profile.id}&select=progreso`,{headers:{Authorization:`Bearer ${current.accessToken}`,Accept:"application/vnd.pgrst.object+json"}});
- const stored=r.ok?(await r.json() as {progreso?:Record<string,unknown>}).progreso||{}:{};
+ if(!r.ok&&r.status!==406)return Response.json({error:"No fue posible recuperar el progreso."},{status:503,headers:sessionHeaders(current.tokens)});const stored=r.ok?(await r.json() as {progreso?:Record<string,unknown>}).progreso||{}:{};
  const progress=(stored.u3&&typeof stored.u3==="object"?stored.u3:{}) as Record<string,unknown>;
  return Response.json({user:{matricula:current.profile.matricula,name:current.profile.nombre_completo,role:current.profile.rol},progress},{headers:sessionHeaders(current.tokens)});
 }
@@ -58,10 +58,10 @@ export async function POST(request:Request){
 export async function PUT(request:Request){
  const current=await session(request);if(!current)return Response.json({error:"Sesión no válida"},{status:401,headers:sessionHeaders(undefined,true)});
  const body=await request.json() as {progress?:Record<string,unknown>};const incoming=body.progress||{};
- const savedRequest=await authRequest(`/rest/v1/estado_alumno?alumno_id=eq.${current.profile.id}&select=progreso`,{headers:{Authorization:`Bearer ${current.accessToken}`,Accept:"application/vnd.pgrst.object+json"}});const savedRoot=savedRequest.ok?(await savedRequest.json() as {progreso?:Record<string,unknown>}).progreso||{}:{};const saved=(savedRoot.u3&&typeof savedRoot.u3==="object"?savedRoot.u3:{}) as Record<string,unknown>;
+ const savedRequest=await authRequest(`/rest/v1/estado_alumno?alumno_id=eq.${current.profile.id}&select=progreso`,{headers:{Authorization:`Bearer ${current.accessToken}`,Accept:"application/vnd.pgrst.object+json"}});if(!savedRequest.ok&&savedRequest.status!==406)return Response.json({error:"No fue posible consultar el avance anterior. No se guardaron cambios."},{status:503,headers:sessionHeaders(current.tokens)});const savedRoot=savedRequest.ok?(await savedRequest.json() as {progreso?:Record<string,unknown>}).progreso||{}:{};const saved=(savedRoot.u3&&typeof savedRoot.u3==="object"?savedRoot.u3:{}) as Record<string,unknown>;
  const savedReset=typeof saved.resetAt==="string"?saved.resetAt:"",incomingReset=typeof incoming.resetAt==="string"?incoming.resetAt:"";
  if(savedReset&&savedReset!==incomingReset)return Response.json({error:"El docente reinició este intento.",reset:true,progress:saved},{status:409,headers:sessionHeaders(current.tokens)});
- const progress={...incoming,resetAt:savedReset||incomingReset||undefined,history:Array.isArray(saved.history)?saved.history:Array.isArray(incoming.history)?incoming.history:[]};
+ const savedQuick=(saved.quickProgressByTopic||{}) as Record<string,number>,incomingQuick=(incoming.quickProgressByTopic||{}) as Record<string,number>;const quickProgressByTopic:Record<string,number>={};for(const key of new Set([...Object.keys(savedQuick),...Object.keys(incomingQuick)])){quickProgressByTopic[key]=Math.min(5,Math.max(0,Number(savedQuick[key])||0,Number(incomingQuick[key])||0))}const savedDone=Array.isArray(saved.done)?saved.done as string[]:[],incomingDone=Array.isArray(incoming.done)?incoming.done as string[]:[];const progress={...incoming,done:[...new Set([...savedDone,...incomingDone])],quickProgressByTopic,resetAt:savedReset||incomingReset||undefined,history:Array.isArray(saved.history)?saved.history:Array.isArray(incoming.history)?incoming.history:[]};
  const r=await authRequest("/rest/v1/estado_alumno?on_conflict=alumno_id",{method:"POST",headers:{Authorization:`Bearer ${current.accessToken}`,Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify({alumno_id:current.profile.id,progreso:{...savedRoot,u3:progress},updated_at:new Date().toISOString()})});
  if(!r.ok)return Response.json({error:"No fue posible guardar el progreso."},{status:500});return Response.json({ok:true},{headers:sessionHeaders(current.tokens)});
 }
